@@ -1,1 +1,4 @@
 aiofiles
+
+# Git operations use subprocess to call system git CLI
+# Git must be installed on the system (not a Python package dependency)

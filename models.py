@@ -104,3 +104,17 @@ class ToolResult:
             "content": [block.to_dict() for block in self.content],
             "isError": self.is_error,
         }
+
+
+class GitResult:
+    """Result wrapper for a git operation."""
+
+    def __init__(self, content: List[ContentBlock], is_error: bool = False):
+        self.content = content
+        self.is_error = is_error
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "content": [block.to_dict() for block in self.content],
+            "isError": self.is_error,
+        }

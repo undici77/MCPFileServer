@@ -8,6 +8,7 @@ from typing import Optional, Any
 from models import MCPMessage
 from tools import get_tool_definitions
 from handlers import FileHandlers
+from git_handlers import GitHandlers
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class MCPFileServer:
         # Resolve once at start‑up so we always compare absolute paths.
         self.working_directory = (work_dir or Path.cwd()).resolve()
         self.handlers = FileHandlers(self.working_directory)
+        self.git_handlers = GitHandlers(self.working_directory)
         logger.info(f"Server started with working directory: {self.working_directory}")
 
     async def handle_message(self, message: MCPMessage) -> Optional[MCPMessage]:
@@ -82,6 +84,36 @@ class MCPFileServer:
                 return await self.handlers.handle_delete_directory(message.id, arguments)
             elif tool_name == "search_in_file":
                 return await self.handlers.handle_search_in_file(message.id, arguments)
+            elif tool_name == "git_status":
+                return self.git_handlers.handle_git_status(message.id, arguments)
+            elif tool_name == "git_log":
+                return self.git_handlers.handle_git_log(message.id, arguments)
+            elif tool_name == "git_checkout":
+                return self.git_handlers.handle_git_checkout(message.id, arguments)
+            elif tool_name == "git_branch_create":
+                return self.git_handlers.handle_git_branch_create(message.id, arguments)
+            elif tool_name == "git_branch_delete":
+                return self.git_handlers.handle_git_branch_delete(message.id, arguments)
+            elif tool_name == "git_branch_list":
+                return self.git_handlers.handle_git_branch_list(message.id, arguments)
+            elif tool_name == "git_add":
+                return self.git_handlers.handle_git_add(message.id, arguments)
+            elif tool_name == "git_commit":
+                return self.git_handlers.handle_git_commit(message.id, arguments)
+            elif tool_name == "git_push":
+                return self.git_handlers.handle_git_push(message.id, arguments)
+            elif tool_name == "git_pull":
+                return self.git_handlers.handle_git_pull(message.id, arguments)
+            elif tool_name == "git_diff":
+                return self.git_handlers.handle_git_diff(message.id, arguments)
+            elif tool_name == "git_clone":
+                return self.git_handlers.handle_git_clone(message.id, arguments)
+            elif tool_name == "git_submodule_add":
+                return self.git_handlers.handle_git_submodule_add(message.id, arguments)
+            elif tool_name == "git_submodule_update":
+                return self.git_handlers.handle_git_submodule_update(message.id, arguments)
+            elif tool_name == "git_submodule_list":
+                return self.git_handlers.handle_git_submodule_list(message.id, arguments)
             else:
                 return self.handlers.create_error_response(
                     message.id, -32602, f"Unknown tool: {tool_name}"

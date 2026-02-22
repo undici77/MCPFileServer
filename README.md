@@ -1,6 +1,6 @@
 # 📂 MCP File Server
 
-**MCP File Server** is a secure, sandboxed file server providing controlled access to filesystem operations via the **Model Control Protocol (MCP)**. It supports reading, writing, listing, creating, and deleting files and directories within a configurable working directory while enforcing strict security checks.
+**MCP File Server** is a secure, sandboxed file server providing controlled access to filesystem operations via the **Model Control Protocol (MCP)**. It supports reading, writing, listing, creating, and deleting files and directories within a configurable working directory while enforcing strict security checks. Git operations are also available for repositories in the working directory.
 
 ## Table of Contents
 - [Features](#features)
@@ -12,19 +12,37 @@
   - [`tools/list`](#toolslist)
   - [`tools/call`](#toolscall)
 - [Available Tools](#available-tools)
-  - [read_file](#read_file)
-  - [write_file](#write_file)
-  - [list_files](#list_files)
-  - [create_directory](#create_directory)
-  - [delete_file](#delete_file)
-  - [delete_directory](#delete_directory)
-  - [search_in_file](#search_in_file)
+  - [File Operations](#file-operations)
+    - [`read_file`](#read_file)
+    - [`write_file`](#write_file)
+    - [`list_files`](#list_files)
+    - [`create_directory`](#create_directory)
+    - [`delete_file`](#delete_file)
+    - [`delete_directory`](#delete_directory)
+    - [`search_in_file`](#search_in_file)
+  - [Git Operations](#git-operations)
+    - [`git_status`](#git_status)
+    - [`git_log`](#git_log)
+    - [`git_checkout`](#git_checkout)
+    - [`git_branch_create`](#git_branch_create)
+    - [`git_branch_delete`](#git_branch_delete)
+    - [`git_branch_list`](#git_branch_list)
+    - [`git_add`](#git_add)
+    - [`git_commit`](#git_commit)
+    - [`git_push`](#git_push)
+    - [`git_pull`](#git_pull)
+    - [`git_diff`](#git_diff)
+    - [`git_clone`](#git_clone)
+    - [`git_submodule_add`](#git_submodule_add)
+    - [`git_submodule_update`](#git_submodule_update)
+    - [`git_submodule_list`](#git_submodule_list)
 - [Security Features](#security-features)
 
 ## 🎯 Features
 - **Sandboxed operations** – all paths are confined to a user‑specified working directory.
 - **Path traversal protection**, file‑size limits, and blocked extensions.
 - Binary support via Base64 encoding for safe transport of non‑text data.
+- Git operations (status, log, branches, commit/push/pull) for repositories in the working directory.
 - Simple line‑delimited JSON‑RPC protocol suitable for stdin/stdout integration.
 - Ready‑to‑use with **LM Studio** through a minimal `mcp.json` configuration.
 
@@ -33,6 +51,9 @@
 # Clone the repository (if not already done)
 git clone https://github.com/undici77/MCPFileServer.git
 cd MCPFileServer
+
+# Ensure git is installed on your system (required for git operations)
+git --version
 
 # Run the startup script – it creates a virtual environment,
 # installs dependencies, and starts the server.
@@ -44,7 +65,9 @@ The script will:
 - Install required packages (`aiofiles`).
 - Start `main.py` with the supplied working directory.
 
-> 📌 **Tip:** Ensure the script has execution permission:  
+> 📌 **Note for Git Operations**: The git operations use Python's `subprocess` to call the system `git` CLI. Git must be installed and available in your PATH.
+>
+> 📌 **Tip:** Ensure the script has execution permission:
 > `chmod +x run.sh`
 
 ## ⚙️ Command‑Line Options
@@ -116,9 +139,12 @@ Invokes a specific tool.
 > **Note:** The key for the tool name is `**name**`, not `tool`. This matches the server implementation.
 
 ## 🛠️ Available Tools
+
+### File Operations
+
 | Tool | Description |
 |------|-------------|
-| `read_file` | Read a file’s contents (text or binary). |
+| `read_file` | Read a file's contents (text or binary). |
 | `write_file` | Write text or Base64‑encoded binary data to a file. |
 | `list_files` | List files and directories with optional filtering. |
 | `create_directory` | Create a new sub‑directory (parents created as needed). |
@@ -133,6 +159,7 @@ Read the contents of a file inside the working directory.
 |--------|---------|----------|-------------|
 | `path` | string  | ✅ | Relative path to the target file. |
 | `binary` | boolean | ❌ (default: `false`) | Set to `true` to read the file as binary; the result is Base64‑encoded. |
+
 **Example**
 ```json
 {
@@ -155,6 +182,7 @@ Write content to a file (creating intermediate directories if needed).
 | `path` | string  | ✅ | Relative path of the target file. |
 | `content` | string | ✅ | Text to write, or Base64‑encoded binary data when `binary=true`. |
 | `binary` | boolean | ❌ (default: `false`) | Set to `true` to treat `content` as Base64‑encoded binary. |
+
 **Example**
 ```json
 {
@@ -178,6 +206,7 @@ List files and directories under the working directory.
 | `extensions` | array of strings | ❌ | Filter by file extensions (e.g., `[".py", ".txt"]`). If omitted, all files are listed. |
 | `recursive` | boolean | ❌ (default: `true`) | Search sub‑directories recursively when `true`. |
 | `show_empty_dirs` | boolean | ❌ (default: `true`) | Include directories that contain no matching files. |
+
 **Example**
 ```json
 {
@@ -192,7 +221,6 @@ List files and directories under the working directory.
   }
 }
 ```
-The response lists entries prefixed with `DIR:` or `FILE:` and includes a summary line.
 
 ### create_directory
 Create a new directory (including any missing parent directories).
@@ -200,6 +228,7 @@ Create a new directory (including any missing parent directories).
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `path` | string | ✅ | Relative path of the directory to create. |
+
 **Example**
 ```json
 {
@@ -217,6 +246,7 @@ Delete a file inside the working directory.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `path` | string | ✅ | Relative path of the file to delete. |
+
 **Example**
 ```json
 {
@@ -235,6 +265,7 @@ Delete a directory, optionally forcing removal of its contents.
 |------|------|----------|-------------|
 | `path` | string | ✅ | Relative path of the directory to delete. |
 | `force` | boolean | ❌ (default: `false`) | When `true`, deletes non‑empty directories recursively. |
+
 **Example**
 ```json
 {
@@ -256,6 +287,7 @@ Search for a string in a file or recursively in all files within a directory, re
 | `context_lines` | integer | ❌ (default: `3`) | Number of lines before and after each match to include. |
 | `case_sensitive` | boolean | ❌ (default: `false`) | Perform a case‑sensitive search when `true`. |
 | `max_matches` | integer | ❌ (default: `50`) | Maximum matches returned per file. |
+
 **Example**
 ```json
 {
@@ -272,7 +304,356 @@ Search for a string in a file or recursively in all files within a directory, re
   }
 }
 ```
-The response contains formatted excerpts with line numbers and a summary of total matches.
+
+---
+
+### Git Operations
+
+All git operations work on the working directory by default. To operate on a nested repository, use the `repo_path` parameter.
+
+| Tool | Description |
+|------|-------------|
+| `git_status` | Show the working tree status. |
+| `git_log` | Show commit log history. |
+| `git_checkout` | Switch to a different branch or commit. |
+| `git_branch_create` | Create a new branch. |
+| `git_branch_delete` | Delete a branch. |
+| `git_branch_list` | List all branches in the repository. |
+| `git_add` | Add file contents to the staging area. |
+| `git_commit` | Record changes to the repository. |
+| `git_push` | Push changes to a remote repository. |
+| `git_pull` | Fetch from and integrate with a remote repository. |
+| `git_diff` | Show changes between commits, commit and working tree. |
+| `git_clone` | Clone a repository into a new directory. |
+| `git_submodule_add` | Add a submodule to the repository. |
+| `git_submodule_update` | Update existing submodules. |
+| `git_submodule_list` | List all submodules in the repository. |
+
+**Note:** All git tools support an optional `repo_path` parameter to operate on a repository in a subdirectory (e.g., `"repo_path": "vendor/my-repo"`). When omitted, operations target the working directory directly.
+
+### git_status
+Show the working tree status.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `short` | boolean | ❌ (default: `true`) | Use short format output. |
+| `repo_path` | string | ❌ | Path to repository relative to working directory (uses working directory if omitted). |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_status",
+    "arguments": { 
+      "short": true,
+      "repo_path": "vendor/my-repo"
+    }
+  }
+}
+```
+
+### git_log
+Show commit log history.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `max_count` | integer | ❌ (default: `20`) | Maximum number of commits to show. |
+| `oneline` | boolean | ❌ (default: `true`) | Show compact one-line format. |
+| `repo_path` | string | ❌ | Path to repository relative to working directory (uses working directory if omitted). |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_log",
+    "arguments": { 
+      "max_count": 10, 
+      "oneline": true,
+      "repo_path": "vendor/my-repo"
+    }
+  }
+}
+```
+
+### git_checkout
+Switch to a different branch or commit.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `branch` | string | ✅ | Branch name or commit hash to checkout. |
+| `repo_path` | string | ❌ | Path to repository relative to working directory (uses working directory if omitted). |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_checkout",
+    "arguments": { 
+      "branch": "main",
+      "repo_path": "vendor/my-repo"
+    }
+  }
+}
+```
+
+### git_branch_create
+Create a new branch.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `branch` | string | ✅ | Name of the new branch. |
+| `start_point` | string | ❌ | Starting point (branch or commit) for the new branch. |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_branch_create",
+    "arguments": { 
+      "branch": "feature/new-ui",
+      "start_point": "main"
+    }
+  }
+}
+```
+
+### git_branch_delete
+Delete a branch.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `branch` | string | ✅ | Name of the branch to delete. |
+| `force` | boolean | ❌ (default: `false`) | Force deletion even if branch has unmerged changes. |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_branch_delete",
+    "arguments": { 
+      "branch": "old-branch",
+      "force": true
+    }
+  }
+}
+```
+
+### git_branch_list
+List all branches in the repository.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `all` | boolean | ❌ (default: `false`) | List both local and remote branches. |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_branch_list",
+    "arguments": { "all": true }
+  }
+}
+```
+
+### git_add
+Add file contents to the staging area.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `paths` | array of strings | ✅ | List of file paths to add. |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_add",
+    "arguments": { 
+      "paths": ["src/main.py", "tests/test_main.py"] 
+    }
+  }
+}
+```
+
+### git_commit
+Record changes to the repository.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `message` | string | ✅ | Commit message. |
+| `all` | boolean | ❌ (default: `false`) | Automatically stage all modified and deleted files. |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_commit",
+    "arguments": { 
+      "message": "Add new feature",
+      "all": true
+    }
+  }
+}
+```
+
+### git_push
+Push changes to a remote repository.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `remote` | string | ❌ (default: `origin`) | Remote repository name. |
+| `branch` | string | ❌ | Branch to push (defaults to current branch). |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_push",
+    "arguments": { 
+      "remote": "origin",
+      "branch": "main"
+    }
+  }
+}
+```
+
+### git_pull
+Fetch from and integrate with a remote repository.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `remote` | string | ❌ (default: `origin`) | Remote repository name. |
+| `branch` | string | ❌ | Branch to pull (defaults to current branch). |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_pull",
+    "arguments": { 
+      "remote": "origin",
+      "branch": "main"
+    }
+  }
+}
+```
+
+### git_diff
+Show changes between commits, commit and working tree.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | string | ❌ | Specific file or directory to show diff for. |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_diff",
+    "arguments": {
+      "path": "src/main.py"
+    }
+  }
+}
+```
+
+### git_clone
+Clone a repository into a new directory.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `url` | string | ✅ | URL of the repository to clone (HTTPS or SSH). |
+| `path` | string | ✅ | Directory name where the repository will be cloned (relative to working directory). |
+| `branch` | string | ❌ | Specific branch to checkout after cloning. |
+| `recursive` | boolean | ❌ (default: `false`) | Clone submodules recursively. |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_clone",
+    "arguments": {
+      "url": "https://github.com/owner/repo.git",
+      "path": "vendor/repo",
+      "branch": "main"
+    }
+  }
+}
+```
+
+### git_submodule_add
+Add a submodule to the repository.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `url` | string | ✅ | URL of the repository to add as submodule. |
+| `path` | string | ✅ | Path where the submodule will be placed. |
+| `name` | string | ❌ | Name for the submodule (optional, defaults to path). |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_submodule_add",
+    "arguments": {
+      "url": "https://github.com/owner/lib.git",
+      "path": "vendor/lib"
+    }
+  }
+}
+```
+
+### git_submodule_update
+Update existing submodules.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `init` | boolean | ❌ (default: `true`) | Initialize submodules before updating. |
+| `recursive` | boolean | ❌ (default: `true`) | Update submodules recursively. |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_submodule_update",
+    "arguments": {
+      "init": true,
+      "recursive": true
+    }
+  }
+}
+```
+
+### git_submodule_list
+List all submodules in the repository.
+**Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `summary` | boolean | ❌ (default: `true`) | Show summary of submodule status. |
+
+**Example**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "git_submodule_list",
+    "arguments": { "summary": true }
+  }
+}
+```
 
 ---
 
@@ -281,6 +662,7 @@ The response contains formatted excerpts with line numbers and a summary of tota
 - **Blocked extensions & sensitive filenames** – files such as `.exe`, `.bat`, `passwd`, etc., are rejected.
 - **File‑size limits** – reads/writes exceeding `100 MiB` (`MAX_FILE_SIZE`) are denied.
 - **Null byte and dangerous pattern checks** – prevent malformed input attacks.
+- **Git command validation** – branch names and paths are validated to prevent injection attacks.
 
 ---
 
